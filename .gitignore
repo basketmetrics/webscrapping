@@ -1,2 +1,4 @@
 .idea/
 .venv/
+tests/__pycache__/
+data/__pycache__/
