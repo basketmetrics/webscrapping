@@ -2,8 +2,9 @@ import unittest
 from bs4 import BeautifulSoup, Tag
 from ws.bs import Soup
 import os
-from data.team import Team
-from data.game import Game
+from data.boxscore.team import Team
+from data.boxscore.game import Game
+from data.boxscore.quarters import Quarters
 
 
 class WSTestCase(unittest.TestCase):
@@ -28,6 +29,7 @@ class WSTestCase(unittest.TestCase):
 
     def test_get_header(self):
         soup = self.soup
+        # Scores
         left_score = soup.find(class_="Gamestrip__Team relative flex w-100 items-center Gamestrip__Team--left Gamestrip__Team--loser")
         away_result = left_score.find(class_="Gamestrip__Score relative tc w-100 fw-heavy-900 h2 clr-gray-01").text if left_score is not None else None
         if not isinstance(left_score, Tag):
@@ -42,13 +44,30 @@ class WSTestCase(unittest.TestCase):
             home_result = right_score.find(class_="Gamestrip__Score relative tc w-100 fw-heavy-900 h2 clr-gray-01")
             # Obtiene solamente el resultado, obviando cualquier tag o imagen que pueda haber dentro
             home_result = ''.join(home_result.find_all(string=True, recursive=False)).strip()
+        center = soup.find(class_="Table Table--align-right").tbody.find_all("tr")
+        away_quarters = center[0].find_all("td")
+        home_quarters = center[1].find_all("td")
         game = Game(self.id_game)
         game.home_result = home_result
         game.away_result = away_result
+        # Quarters
+        quarters = Quarters()
+        quarters.home_quarters = [q.text for q in home_quarters[1:-1]]
+        quarters.away_quarters = [q.text for q in away_quarters[1:-1]]
+        game.quarters = quarters
+        # Team names
+        team_names = soup.find_all(class_="ScoreCell__Truncate Gamestrip__Truncate h4 clr-gray-01")
+        home_team = team_names[1]
+        away_team = team_names[0]
+        game.home_team.name = home_team.a.h2.text
+        game.away_team.name = away_team.a.h2.text
         self.assertEqual(game.id_game == self.id_game, True, f"El id game de Game: {game.id_game} no es el de la variable id_game: {self.id_game}")
         self.assertEqual(game.home_result == home_result, True, f"El resultado del equipo de casa: {game.home_result} no es el de la variable home_result: {home_result}")
         self.assertEqual(game.away_result == away_result, True, f"El resultado del equipo visitante: {game.away_result} nos es el de la variable away_result: {away_result}")
-
+        self.assertEqual(game.quarters.home_quarters == [q.text for q in home_quarters[1:-1]], True, f"Los arrays del objeto game.quarters.home_quarters: {game.quarters.home_quarters} y los de la variable home_quarters: {[q.text for q in home_quarters[1:-1]]} son distintos")
+        self.assertEqual(game.quarters.away_quarters == [q.text for q in away_quarters[1:-1]], True, f"Los arrays del objeto game.quarters.away_quarters: {game.quarters.away_quarters} y los de la variable home_quarters: {[q.text for q in away_quarters[1:-1]]} son distintos")
+        self.assertEqual(game.home_team.name == home_team.a.h2.text, True, f"El nombre del equipo del objeto Team {game.home_team.name} es distinto al del contenido {home_team.a.h2.text}")
+        self.assertEqual(game.away_team.name == away_team.a.h2.text, True, f"El nombre del equipo del objeto Team {game.away_team.name} es distinto al del contenido {away_team.a.h2.text}")
 
     def test_get_boxscore(self):
         soup = self.soup
